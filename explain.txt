@@ -1,0 +1,136 @@
+Pour push une image sur Docker Hub :
+
+getting-started-todo-app est le nom du dossier qui contient l'image. (dossier Image)
+
+Cree l'image et la build en suivant cette commande :
+docker build -t DOCKER_USERNAME/getting-started-todo-app
+
+verifier si l'image a bien ete cree :
+docker image ls
+
+Pour push l'image sur Docker Hub :
+docker push DOCKER_USERNAME/getting-started-todo-app
+
+
+docker run pour run une image
+
+docker ps -> voir les container lancer
+docker ps -a -> voir tout les containers
+docker stop <container ID> -> Arrete le container associer
+
+
+
+Avec Docker, on peut utiliser des images qui existent deja, approver par Docker,
+
+On peut chercher ca sur le Docker Hub une sorte de marcher d'images pretent a l'emploi.
+
+docker search -> permet de chercher une image
+docker pull -> permet d'extraire l'image(comme git)
+docker image ls -> affiche la liste des images disponibles sur le systeme
+docker image history -> Permet de repertorier les calques de l'image
+
+
+
+Un registre est un dossier qui va contenir plein de depot qui contiennent des images,
+on peut le voir comme Github qui contient des repos qui contiennent des projets.
+ex :
+Registre [ repo[image1, image2] repo2[image1, image2] ]
+Docker Hub est un registre tout comme le registre de amazon, google etc...
+
+
+
+DOCKER COMPOSE :
+il permet de relier plein de container pour faire fonctionner plusieurs service ensemble et permettre a n'importe qui de pouvoir lancer toutes les images avec une seule commande.
+docker compose up -d
+Il faut partir du principe qu'un container doit faire une chose mais le faire bien c'est une mauvaise pratique d'avoir un seul container pour faire tourner plusieurs service, le docker compose sert donc a lier tout les container pour faire fonctionner le service.
+Le docker compose lors du up definit tous les services de l'app ainsi que leurs configurations.
+chaques services specifie son image, ses ports, ses volumes, ses reseaux et tout autres parametres necessaires.
+
+EXAMPLE :
+
+╰─ cat compose.yaml                                                                                            ─╯
+services:
+  app:
+    image: node:18-alpine
+    command: sh -c "yarn install && yarn run dev"
+    ports:
+      - 127.0.0.1:3000:3000
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: secret
+      MYSQL_DB: todos
+
+  mysql:
+    image: mysql:8.0
+    volumes:
+      - todo-mysql-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: todos
+
+volumes:
+  todo-mysql-data:
+
+
+Pour fermer une app, inutile de fermer tout les container manuellement, docker compose peut aussi le
+faire : 
+docker compose down
+
+Persistance :
+De base les volumes ne sont pas automatiquement suppr dans l idee qu on veut peut etre recuperer les donnee lors d'un redemarrage, si on veut supprimer les volumes il faut add le flag --volumes lors du down :
+docker compose down --volumes
+
+
+ATTENTIOM bien utiliser les ligne de commande et pas l'IDE car l'IDE ne supprime pas le reseau  quand on supprime les conteneurs d'une APP contrairement a la ligne de commande.
+
+
+
+COUCHES D'IMAGES :
+Ajout suppression ou modification du systeme de fichier de l'image. 
+On peut cree l'image qu'on veut en tant qu'image de base.
+On peut ajouter ce que l'on veut dans une image puis quand on est satisfait faire un
+docker container commit -m "MSG" image_prev new_image
+Cela cree une nouvelle couche de l'image.
+
+LA PLUPART des build n'utilise pas de docker container commit, au lieu de ca on utilie un DOCKERFILE -> voir suite.
+
+ 
+DOCKERFILE :
+Un dockerfile est un document textuel utilise pour creer une image de conteneur. Il fournit des instructions au generateur d'images sur les commandes a executer, les fichiers a copier, la commande de demarrage etc...
+
+Pour exemple, ce Dockerfile produirait une application Python prete a l'emploi.
+
+FROM python:3.13
+WORKDIR /usr/local/app
+
+#install the application dependenciess
+COPY requirement.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+#copye in the source code
+COPY src ./src
+EXPOSE 8080
+
+#setup an app user so the container doesn't run as the root user
+RUN useradd app
+USER app
+
+CMD ["unicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+
+
+FROM <image>- cela spécifie l'image de base que la construction étendra.
+WORKDIR <path>- cette instruction spécifie le "répertoire de travail" ou le chemin dans l'image où les fichiers seront copiés et les commandes seront exécutées.
+COPY <host-path> <image-path>- cette instruction indique au constructeur de copier les fichiers de l'hôte et de les mettre dans l'image du conteneur.
+RUN <command>- cette instruction indique au constructeur d'exécuter la commande spécifiée.
+ENV <name> <value>- cette instruction définit une variable d'environnement qu'un conteneur en cours d'exécution utilisera.
+EXPOSE <port-number>- cette instruction définit la configuration sur l'image qui indique un port que l'image aimerait exposer.
+USER <user-or-uid>- cette instruction définit l'utilisateur par défaut pour toutes les instructions suivantes.
+CMD ["<command>", "<arg1>"]- cette instruction définit la commande par défaut qu'un conteneur utilisant cette image exécutera.
+
+
+Docker init pour conteneuriser rapidement de nouveaux projets : Cree un compose.yaml et un .dockerignore
