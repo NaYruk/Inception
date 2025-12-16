@@ -1,0 +1,19 @@
+version: '1.0'
+
+services:
+  mariadb:
+    container_name: mariadb
+    build: ./requirements/mariadb
+    volumes:
+      - /Users/marcmilliot/data/mariadb:/var/lib/mysql
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    restart: always
+    networks:
+      - inception
+
+networks:
+  inception:
+    driver: bridge

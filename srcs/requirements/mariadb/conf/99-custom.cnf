@@ -1,0 +1,20 @@
+#
+# Custom MariaDB configuration for Inception
+#
+
+[mysqld]
+# Autorise les connexions depuis l'extérieur du container
+bind-address = 0.0.0.0
+
+# Port
+port = 3306
+
+# Logs d'erreurs
+log_error = /var/log/mysql/error.log
+
+# Support UTF8 complet
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+
+# Compatibility avec macOS (système de fichiers case-insensitive)
+lower_case_table_names = 1
