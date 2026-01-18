@@ -1,0 +1,106 @@
+# Docker secrets pour les MDP importants du projet
+secrets:
+  mysql_root_password:
+    file: ../secrets/mysql_root_password.txt
+  mysql_user_password:
+    file: ../secrets/mysql_user_password.txt
+  wordpress_admin_password:
+    file: ../secrets/wordpress_admin_password.txt
+  wordpress_user_password:
+    file: ../secrets/wordpress_user_password.txt
+      
+
+services:
+  mariadb:
+    container_name: mariadb
+    secrets:
+      - mysql_root_password
+      - mysql_user_password
+    build: ./requirements/mariadb
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -uroot -p$(cat /run/secrets/mysql_root_password) -e 'SELECT 1' || exit 1"]
+      interval: 10s     # Vérifie toutes les 10 secondes
+      timeout: 5s       # Si ça prend plus de 5s, c'est un échec
+      retries: 5        # Essaie 5 fois avant de déclarer le service "unhealthy"
+      start_period: 30s # Donne 30s au service pour démarrer avant de commencer les checks
+    restart: always
+    networks:
+      - inception
+    expose:
+      - "3306"
+
+  wordpress:
+    container_name: wordpress
+    secrets:
+      - wordpress_admin_password
+      - wordpress_user_password
+      - mysql_user_password
+    build: ./requirements/wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+    env_file:
+      - .env
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/wp-config.php && pgrep php-fpm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      mariadb:
+        condition: service_healthy # Attend que MariaDB soit "healthy"
+    networks:
+      - inception
+    expose:
+      - "9000"
+
+  nginx:
+    container_name: nginx
+    build: ./requirements/nginx
+    volumes:
+      - wordpress_data:/var/www/html
+    ports:
+      - "443:443"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:443"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      wordpress:
+        condition: service_healthy # Attend que Wordpress soit "healthy"
+    networks:
+      - inception
+    expose:
+      - "443"
+
+
+
+networks:
+  inception:
+    driver: bridge
+
+
+
+volumes:
+  mariadb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/mariadb
+
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/wordpress
+
