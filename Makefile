@@ -18,29 +18,29 @@ setup:
 
 # Build le docker-compose Etape 2
 build:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) build
+	@docker compose -f $(DOCKER_COMPOSE_PATH) build
 
 # Run le docker-compose Etape 3
 run:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) up -d
+	@docker compose -f $(DOCKER_COMPOSE_PATH) up -d
 
 # Montre les logs Etape 4
 logs:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) logs -f
+	@docker compose -f $(DOCKER_COMPOSE_PATH) logs -f
 
 
 
 # Arrête et supprime les conteneurs
 down:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) down
+	@docker compose -f $(DOCKER_COMPOSE_PATH) down
 
 # Arrête et supprime les conteneurs + images
 down_images:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) down -v --rmi all
+	@docker compose -f $(DOCKER_COMPOSE_PATH) down -v --rmi all
 
 # Nettoyage complet
 fclean:
-	@docker-compose -f $(DOCKER_COMPOSE_PATH) down -v --rmi all
+	@docker compose -f $(DOCKER_COMPOSE_PATH) down -v --rmi all
 	@sudo rm -rf $(DATA_DIR)
 	@docker system prune -af --volumes
 
