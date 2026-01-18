@@ -83,27 +83,14 @@ make re     # Rebuild everything
 
 ### AI Usage
 
-This project was developed with AI assistance (Claude by Anthropic) for:
+Claude AI (Anthropic) was used as a **personal tutor and learning guide** throughout this project:
 
-**Technical Implementation**:
-- Docker Compose syntax and orchestration patterns
-- Dockerfile optimization and best practices
-- Bash scripting for service initialization (MariaDB setup, WordPress installation)
-- NGINX FastCGI proxy configuration
+- **Teaching**: Explaining Docker concepts (containers, networks, volumes, secrets), Docker Compose orchestration, TLS/SSL, FastCGI, PHP-FPM
+- **Code Review**: Analyzing configuration errors, suggesting fixes, explaining security best practices
+- **Debugging**: Helping diagnose issues (volume paths macOS/Linux, healthchecks, git history cleanup)
+- **Documentation**: Structuring README, USER_DOC, DEV_DOC according to requirements
 
-**Problem Solving**:
-- Docker secrets implementation and security
-- Volume path compatibility (macOS vs Linux)
-- Health check configuration and service dependencies
-- Git history cleanup for accidentally committed secrets
-
-**Learning and Documentation**:
-- Understanding Docker networking and inter-container communication
-- Explaining differences between Docker and VMs, secrets vs environment variables
-- Structuring documentation (README, USER_DOC, DEV_DOC)
-- Troubleshooting guides and debugging strategies
-
-All AI-generated content was reviewed, tested, and validated. The AI served as a learning resource and technical reference, ensuring full comprehension of implemented solutions.
+**Approach**: Every piece of code was written and understood by the student. The AI explained the "why" behind each choice, not providing copy-paste solutions. All implementations were validated through testing.
 
 ---
 
