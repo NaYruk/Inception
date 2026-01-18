@@ -23,39 +23,6 @@
 
 This project implements a WordPress infrastructure using Docker containers. The architecture follows a microservices pattern with three isolated services communicating through a private Docker network.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         HOST MACHINE                             │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              DOCKER ENGINE                                 │  │
-│  │  ┌──────────────────────────────────────────────────────┐ │  │
-│  │  │          Docker Network: inception (bridge)          │ │  │
-│  │  │                                                       │ │  │
-│  │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │ │  │
-│  │  │  │   NGINX     │  │  WORDPRESS  │  │  MARIADB    │  │ │  │
-│  │  │  │             │  │             │  │             │  │ │  │
-│  │  │  │ Port: 443   │←→│ Port: 9000  │←→│ Port: 3306  │  │ │  │
-│  │  │  │ TLS 1.2/1.3 │  │  PHP-FPM    │  │   MySQL     │  │ │  │
-│  │  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  │ │  │
-│  │  │         │                │                │          │ │  │
-│  │  │         └────────────────┴────────────────┘          │ │  │
-│  │  │                          │                            │ │  │
-│  │  │                   Docker Secrets                      │ │  │
-│  │  │                (tmpfs mounts at /run/secrets/)        │ │  │
-│  │  └──────────────────────────────────────────────────────┘ │  │
-│  │         │                      │                            │  │
-│  │    [Volume]                [Volume]                        │  │
-│  │  wordpress_data           mariadb_data                     │  │
-│  │         │                      │                            │  │
-│  └─────────┼──────────────────────┼────────────────────────────┘  │
-│            ↓                      ↓                               │
-│       ~/data/wordpress       ~/data/mariadb                       │
-│       (bind mount)           (bind mount)                         │
-└─────────────────────────────────────────────────────────────────┘
-         ↑
-    Browser → https://mmilliot.42.fr:443
-```
-
 ### Service Responsibilities
 
 | Service | Image Base | Purpose | Exposed Ports | Dependencies |
@@ -156,21 +123,6 @@ chmod 600 secrets/*.txt
 ```
 
 **Important**: Use `echo -n` (no trailing newline) to avoid whitespace in passwords.
-
-### 4. Verify Configuration
-
-```bash
-# Check .env exists and is ignored
-ls -la srcs/.env
-git check-ignore srcs/.env  # Should output: srcs/.env
-
-# Check secrets exist and are ignored
-ls -la secrets/
-git check-ignore secrets/mysql_root_password.txt  # Should output path
-
-# Verify no secrets in git
-git ls-files | grep -E "(\.env|secrets/)"  # Should be empty
-```
 
 ---
 
@@ -647,226 +599,70 @@ curl localhost:9000
 
 ### Making Changes
 
-1. **Modify files** (Dockerfile, configs, scripts)
+1. Modify files (Dockerfile, configs, scripts)
+2. Rebuild: `docker compose -f srcs/docker-compose.yml build <service>`
+3. Restart: `docker compose -f srcs/docker-compose.yml up -d --force-recreate <service>`
+4. Check logs: `docker logs <service>`
 
-2. **Rebuild affected service**:
-   ```bash
-   docker compose -f srcs/docker-compose.yml build <service>
-   ```
-
-3. **Restart service**:
-   ```bash
-   docker compose -f srcs/docker-compose.yml up -d --force-recreate <service>
-   ```
-
-4. **Test changes**:
-   ```bash
-   docker logs <service>
-   ```
-
-### Quick Rebuild
+### Quick Commands
 
 ```bash
-# Full rebuild
-make re
-# Equivalent to: make fclean && make
-
-# Rebuild single service
-docker compose -f srcs/docker-compose.yml up -d --build mariadb
-```
-
-### Live Debugging
-
-```bash
-# Watch logs in real-time
-docker compose -f srcs/docker-compose.yml logs -f
-
-# Specific service
-docker logs -f mariadb
-
-# Last 50 lines
-docker logs --tail 50 wordpress
+make re                                           # Full rebuild
+docker compose -f srcs/docker-compose.yml logs -f # Watch all logs
+docker exec -it <container> bash                  # Shell access
 ```
 
 ---
 
 ## Debugging Guide
 
-### Common Issues
-
-#### 1. Container Won't Start
+### Essential Debug Commands
 
 ```bash
-# Check logs
+# Check container status
+docker ps -a
+
+# View logs
 docker logs <container>
+docker logs -f <container>  # Follow mode
 
-# Check exit code
-docker ps -a | grep <container>
+# Access container shell
+docker exec -it <container> bash
 
-# Inspect container config
-docker inspect <container>
-```
+# Verify secrets are mounted
+docker exec <container> ls -la /run/secrets/
 
-#### 2. Service Unhealthy
-
-```bash
-# View healthcheck logs
-docker inspect <container> | grep -A 10 Health
-
-# Manually run healthcheck command
-docker exec <container> <healthcheck_command>
-```
-
-#### 3. Network Issues
-
-```bash
-# Verify network exists
-docker network ls | grep inception
-
-# Check container connectivity
-docker exec nginx ping mariadb
-docker exec wordpress ping mariadb
+# Check database connectivity
+docker exec mariadb mariadb -uroot -p
 
 # Inspect network
 docker network inspect inception
 ```
 
-#### 4. Volume Issues
+### Common Issues
 
-```bash
-# Verify mount points
-docker inspect <container> | grep -A 5 Mounts
-
-# Check host directory permissions
-ls -la ~/data/
-
-# Check contents from inside container
-docker exec <container> ls -la /var/www/html
-```
-
-#### 5. Secrets Not Loading
-
-```bash
-# Verify secrets exist on host
-ls -la secrets/
-
-# Check secrets mounted in container
-docker exec <container> ls -la /run/secrets/
-
-# Read secret value (debug only!)
-docker exec <container> cat /run/secrets/mysql_root_password
-```
-
-### Debug Mode
-
-Enable verbose logging:
-
-```bash
-# Build with verbose output
-docker compose -f srcs/docker-compose.yml build --progress=plain
-
-# Run without detach (see real-time output)
-docker compose -f srcs/docker-compose.yml up
-```
-
-### Shell Access
-
-```bash
-# MariaDB
-docker exec -it mariadb bash
-
-# WordPress
-docker exec -it wordpress bash
-
-# Nginx
-docker exec -it nginx bash
-```
-
-### Database Access
-
-```bash
-# Connect to MySQL
-docker exec -it mariadb mariadb -uroot -p
-
-# List databases
-docker exec mariadb mariadb -uroot -p -e "SHOW DATABASES;"
-
-# Check WordPress tables
-docker exec mariadb mariadb -uroot -p wordpress_db -e "SHOW TABLES;"
-```
+| Problem | Solution |
+|---------|----------|
+| Container won't start | Check logs: `docker logs <container>` |
+| Service unhealthy | Run healthcheck manually: `docker exec <container> <test_command>` |
+| Network issues | Verify: `docker exec nginx ping mariadb` |
+| Volume issues | Check: `ls -la ~/data/` and `docker inspect <container>` |
+| Secrets not loading | Verify: `docker exec <container> ls /run/secrets/` |
 
 ---
 
-## Performance Optimization
+## Best Practices
 
-### Build Cache
+### Build Optimization
 
-Docker caches layers. Optimize Dockerfile order:
-
-```dockerfile
-# GOOD: Dependencies change rarely, cached
-RUN apt-get update && apt-get install -y nginx
-COPY conf/nginx.conf /etc/nginx/
-
-# BAD: Config changes often, invalidates cache
-COPY conf/nginx.conf /etc/nginx/
-RUN apt-get update && apt-get install -y nginx
-```
-
-### Container Resources
-
-Monitor resource usage:
-
-```bash
-# Real-time stats
-docker stats
-
-# Specific container
-docker stats mariadb
-```
-
-### Image Size
-
-Check image sizes:
-
-```bash
-docker images | grep inception
-```
-
-Reduce size:
-- Use `--no-install-recommends` with apt
+- Order Dockerfile instructions: dependencies first, configs last (better caching)
 - Clean apt cache: `rm -rf /var/lib/apt/lists/*`
-- Multi-stage builds (advanced)
+- Use `--no-install-recommends` with apt
 
----
+### Security
 
-## Security Considerations
-
-### Secrets Management
-
-✅ **DO**:
-- Use Docker secrets for passwords
-- Store secrets in tmpfs (RAM only)
-- Never commit secrets to git
-- Use `.gitignore` for `secrets/` directory
-
-❌ **DON'T**:
-- Put passwords in environment variables
-- Hardcode credentials in Dockerfiles
-- Use same password for all services
-- Commit `.env` file
-
-### Network Security
-
-- Only port 443 exposed to host
-- All inter-service communication over private network
-- TLS 1.2/1.3 only (no SSLv3, TLS 1.0/1.1)
-
-### Container Isolation
-
-- Containers run as non-root where possible
-- Read-only filesystems for secrets
-- No `--privileged` flag used
+✅ **DO**: Use Docker secrets, never commit credentials, use `.gitignore`
+❌ **DON'T**: Put passwords in ENV vars, hardcode credentials, commit `.env`
 
 ---
 
